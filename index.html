@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GeoCajari | Informações Territoriais</title>
+  <meta name="description" content="Geoportal interativo para explorar informações territoriais do município de Cajari (MA)." />
+  <link rel="stylesheet" href="assets/css/style.css?v=20260608-8" />
+</head>
+<body>
+  <a class="skip-link" href="#mapa">Ir para o mapa</a>
+  <div id="indicadorCarga" class="loading-screen" role="status" aria-live="polite">
+    <div class="loading-ring"></div>
+    <strong>Preparando o mapa</strong>
+    <span>Carregando o mapa temático...</span>
+  </div>
+
+  <header class="topbar">
+    <div class="brand">
+      <img class="brand-logo" src="assets/img/prismageo-logo.png" alt="PrismaGeo" />
+      <div>
+        <span class="eyebrow">Geoportal municipal</span>
+        <h1>GeoCajari</h1>
+      </div>
+    </div>
+    <div class="topbar-center">
+      <span class="location">Cajari, Maranhão</span>
+      <span class="period">Informações territoriais integradas</span>
+    </div>
+    <nav class="header-actions" aria-label="Ações">
+      <a id="downloadGeojson" class="action-button download" href="Cajari_2022.geojson" download>Baixar dados 2022</a>
+      <button id="btnTema" class="icon-button" type="button" aria-label="Ativar modo escuro" title="Alternar tema">
+        <span class="sun"></span>
+      </button>
+      <button id="btnPainel" class="icon-button panel-toggle" type="button" aria-label="Abrir painel">Painel</button>
+    </nav>
+  </header>
+
+  <main class="portal">
+    <aside id="sidebar" class="sidebar" aria-label="Painel de análise">
+      <section class="intro-card">
+        <div class="intro-kicker">
+          <span></span>
+          <p class="eyebrow">Explore Cajari</p>
+        </div>
+        <h2>Leitura territorial integrada</h2>
+        <p>Escolha um tema para analisar o municipio por mapas, indicadores e comparacoes temporais.</p>
+        <div class="home-carousel" aria-label="Mapas disponíveis">
+          <div id="homeCarouselTrack" class="home-carousel-track">
+            <article class="carousel-slide" data-slide="uso-solo">
+              <p class="eyebrow">Mapa 1 de 5</p>
+              <h3>Uso e cobertura do solo</h3>
+              <p>Compare os anos de 2012 e 2022, filtre classes e visualize mudanças no território.</p>
+              <button class="carousel-open" type="button" data-module="uso-solo">Abrir mapa</button>
+            </article>
+            <article class="carousel-slide" data-slide="populacao">
+              <p class="eyebrow">Mapa 2 de 5</p>
+              <h3>População e setores censitários</h3>
+              <p>Explore habitantes, domicílios, área e densidade por setor censitário.</p>
+              <button class="carousel-open" type="button" data-module="populacao">Abrir mapa</button>
+            </article>
+            <article class="carousel-slide" data-slide="relevo">
+              <p class="eyebrow">Mapa 3 de 5</p>
+              <h3>Relevo e hipsometria</h3>
+              <p>Consulte altitude, faixas hipsométricas e pontos mais altos e baixos.</p>
+              <button class="carousel-open" type="button" data-module="relevo">Abrir mapa</button>
+            </article>
+            <article class="carousel-slide" data-slide="hidrografia">
+              <p class="eyebrow">Mapa 4 de 5</p>
+              <h3>Hidrografia e áreas úmidas</h3>
+              <p>Visualize rios, igarapés, lagos, corpos d'água, frequência e alagamento.</p>
+              <button class="carousel-open" type="button" data-module="hidrografia">Abrir mapa</button>
+            </article>
+            <article class="carousel-slide" data-slide="localidades">
+              <p class="eyebrow">Mapa 5 de 5</p>
+              <h3>Localidades e acessos</h3>
+              <p>Veja povoados, estradas recortadas, rios de referência e hipsometria.</p>
+              <button class="carousel-open" type="button" data-module="localidades">Abrir mapa</button>
+            </article>
+          </div>
+          <div class="carousel-actions">
+            <button id="carouselPrev" type="button" aria-label="Mapa anterior">‹</button>
+            <div id="carouselDots" class="carousel-dots" aria-hidden="true"></div>
+            <button id="carouselNext" type="button" aria-label="Próximo mapa">›</button>
+          </div>
+        </div>
+        <div class="switcher-heading">
+          <p class="switcher-label">Temas disponiveis</p>
+          <span>5 modulos</span>
+        </div>
+        <div class="module-switcher" aria-label="Temas do geoportal">
+          <button class="module-card" type="button" data-module="uso-solo">
+            <span class="module-icon icon-land" aria-hidden="true"></span>
+            <span class="module-copy">
+              <strong>Uso do solo</strong>
+              <small>2012 / 2022</small>
+            </span>
+          </button>
+          <button class="module-card" type="button" data-module="populacao">
+            <span class="module-icon icon-people" aria-hidden="true"></span>
+            <span class="module-copy">
+              <strong>População</strong>
+              <small>Setores censitários</small>
+            </span>
+          </button>
+          <button class="module-card" type="button" data-module="relevo">
+            <span class="module-icon icon-relief" aria-hidden="true"></span>
+            <span class="module-copy">
+              <strong>Relevo</strong>
+              <small>Hipsometria</small>
+            </span>
+          </button>
+          <button class="module-card" type="button" data-module="hidrografia">
+            <span class="module-icon icon-water" aria-hidden="true"></span>
+            <span class="module-copy">
+              <strong>Hidrografia</strong>
+              <small>Rios e áreas úmidas</small>
+            </span>
+          </button>
+          <button class="module-card" type="button" data-module="localidades">
+            <span class="module-icon icon-place" aria-hidden="true"></span>
+            <span class="module-copy">
+              <strong>Localidades</strong>
+              <small>Povoados e acessos</small>
+            </span>
+          </button>
+        </div>
+        <div id="controlesTemporais" class="soil-only">
+        <div class="year-switch" role="group" aria-label="Ano exibido no mapa">
+          <button class="year-option" type="button" data-year="2012">2012</button>
+          <button class="year-option active" type="button" data-year="2022">2022</button>
+        </div>
+        <button id="btnComparar" class="compare-toggle" type="button" aria-pressed="false">
+          <span class="compare-icon" aria-hidden="true"></span>
+          Comparar 2012 / 2022 no mapa
+        </button>
+        </div>
+      </section>
+
+      <section id="moduleInfo" class="panel-card module-info">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Módulo ativo</p>
+            <h3>População e setores censitários</h3>
+          </div>
+        </div>
+        <p>Explore a distribuição dos habitantes por setor censitário, consulte domicílios e compare os distritos de Cajari.</p>
+      </section>
+
+      <section class="metrics" aria-label="Indicadores">
+        <article class="metric">
+          <span id="metricaPrimariaTitulo">Área exibida</span>
+          <strong id="areaVisivel">-</strong>
+          <small id="quantidadeClasses">10 classes ativas</small>
+        </article>
+        <article class="metric">
+          <span id="metricaSecundariaTitulo">Maior classe</span>
+          <strong id="classePrincipal">-</strong>
+          <small id="areaPrincipal">-</small>
+        </article>
+      </section>
+
+      <section class="panel-card change-card">
+        <div class="section-heading">
+          <div>
+            <p id="indicadoresEyebrow" class="eyebrow">Comparativo</p>
+            <h3 id="indicadoresTitulo">Mudança 2012-2022</h3>
+          </div>
+        </div>
+        <div id="indicadoresMudanca" class="change-list"></div>
+      </section>
+
+      <section id="classesCard" class="panel-card layers-card soil-only">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Camadas</p>
+            <h3>Classes de cobertura</h3>
+          </div>
+          <div class="mini-actions">
+            <button id="selecionarTodas" type="button">Todas</button>
+            <button id="limparSelecao" type="button">Limpar</button>
+          </div>
+        </div>
+        <div id="listaFiltros" class="filters-list" aria-live="polite"></div>
+      </section>
+
+      <section id="graficoCard" class="panel-card chart-card soil-only">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Distribuição</p>
+            <h3>Área por classe (km²)</h3>
+          </div>
+        </div>
+        <div id="graficoArea" class="bar-chart" aria-label="Gráfico de áreas por classe"></div>
+      </section>
+      <p id="fonteModulo" class="source">Fonte: classificação de uso e cobertura do solo fornecida no projeto. Áreas calculadas em km².</p>
+    </aside>
+
+    <section class="map-stage" aria-label="Mapa interativo">
+      <div id="mapa" class="map-container">
+        <div id="basemap" class="basemap-layer" aria-hidden="true"></div>
+        <canvas id="canvasMapa" aria-label="Mapa temático interativo de uso do solo"></canvas>
+        <div id="rotulo2012" class="swipe-label swipe-left">2012</div>
+        <div id="rotulo2022" class="swipe-label swipe-right">2022</div>
+        <div class="map-credit">Mapa temático local | Cajari (MA)</div>
+      </div>
+      <div class="map-tools">
+        <div class="zoom-tools" aria-label="Zoom">
+          <button id="zoomMais" type="button" title="Aproximar">+</button>
+          <button id="zoomMenos" type="button" title="Afastar">−</button>
+        </div>
+        <button id="btnEnquadrar" type="button" title="Enquadrar município">Enquadrar</button>
+        <button id="btnBasemap" class="active" type="button" aria-pressed="true" title="Exibir ou ocultar mapa base">Mapa base</button>
+        <label class="opacity-control" for="opacidade">
+          Opacidade
+          <input id="opacidade" type="range" min="20" max="95" value="82" />
+        </label>
+      </div>
+      <article id="detailCard" class="detail-card" aria-live="polite">
+        <p class="eyebrow">Selecione uma classe no mapa</p>
+        <h2>Uso do solo em <span id="anoDetalhe">2022</span></h2>
+        <p class="detail-help">Clique em uma área colorida para consultar a classe e sua evolução.</p>
+      </article>
+      <div id="mapHint" class="legend-note">Clique em uma feição para ver detalhes</div>
+    </section>
+  </main>
+
+  <script src="assets/js/populacao-data.js?v=20260608-8"></script>
+  <script src="assets/js/app.js?v=20260612-1"></script>
+</body>
+</html>
