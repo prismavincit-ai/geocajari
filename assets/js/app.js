@@ -40,6 +40,8 @@ const estado = {
   relevo: null,
   faixaRelevoAtiva: null,
   extremoRelevoFocado: null,
+  extremoRelevoAlerta: false,
+  alertaRelevoAnimacaoId: null,
   ultimaAltitudeCursor: null,
   ultimoTempoAltitude: 0,
   classeUsoSoloAtiva: null,
@@ -300,7 +302,7 @@ async function carregarLocalidades() {
   const limite = await carregarGeojson("Cajari.geojson", "limite municipal");
   const [povoados, estradas, rios] = await Promise.all([
     carregarGeojson("LOCALIZACAO_POVOADOS/Povoados.geojson", "povoados"),
-    carregarGeojson("LOCALIZACAO_POVOADOS/Estradas_recortado.geojson?v=20260612-estradas", "estradas recortadas"),
+    carregarGeojson("LOCALIZACAO_POVOADOS/Estradas_recortado.geojson?v=20260614-estradas", "estradas recortadas"),
     carregarGeojson("LOCALIZACAO_POVOADOS/Rios.geojson", "rios")
   ]);
   estado.localidades = {
@@ -1054,18 +1056,18 @@ function desenharPontoLocalidade(feature, destaque) {
   contexto.save();
   contexto.translate(p[0], p[1]);
   contexto.shadowColor = destaque ? "rgba(5, 64, 51, 0.28)" : "rgba(5, 64, 51, 0.16)";
-  contexto.shadowBlur = destaque ? 14 : 6;
+  contexto.shadowBlur = destaque ? 11 : 4;
   contexto.fillStyle = destaque ? "#0A6C50" : "#ffffff";
   contexto.strokeStyle = destaque ? "#ffffff" : "#0A6C50";
-  contexto.lineWidth = destaque ? 3 : 2;
+  contexto.lineWidth = destaque ? 2.4 : 1.6;
   contexto.beginPath();
-  contexto.arc(0, 0, destaque ? 8 : 5.5, 0, Math.PI * 2);
+  contexto.arc(0, 0, destaque ? 6.6 : 4.2, 0, Math.PI * 2);
   contexto.fill();
   contexto.stroke();
   contexto.shadowBlur = 0;
   contexto.fillStyle = destaque ? "#ffffff" : "#0A6C50";
   contexto.beginPath();
-  contexto.arc(0, 0, destaque ? 2.8 : 2.1, 0, Math.PI * 2);
+  contexto.arc(0, 0, destaque ? 2.2 : 1.55, 0, Math.PI * 2);
   contexto.fill();
   contexto.restore();
 }
@@ -1318,12 +1320,22 @@ function desenharRelevo() {
     const x = caixa.x + (estado.extremoRelevoFocado.coluna + 0.5) / raster.largura * caixa.largura;
     const y = caixa.y + (estado.extremoRelevoFocado.linha + 0.5) / raster.altura * caixa.altura;
     const tipo = estado.extremoRelevoFocado.tipo === "max" ? "MAX" : "MIN";
-    const cor = estado.extremoRelevoFocado.tipo === "max" ? "#b85f19" : "#087f8f";
+    const alerta = estado.extremoRelevoAlerta;
+    const cor = alerta ? "#D81E1E" : (estado.extremoRelevoFocado.tipo === "max" ? "#b85f19" : "#087f8f");
+    const tempo = performance.now();
+    const pulso = alerta ? (Math.sin(tempo / 185) + 1) / 2 : 0.35;
+    const raioPulso = alerta ? 16 + pulso * 13 : 14;
+    const alphaPulso = alerta ? 0.34 + pulso * 0.38 : 0.18;
 
     contexto.save();
     contexto.translate(x, y);
-    contexto.shadowColor = "rgba(8, 46, 37, 0.22)";
-    contexto.shadowBlur = 14;
+    contexto.shadowColor = alerta ? "rgba(216, 30, 30, 0.32)" : "rgba(8, 46, 37, 0.22)";
+    contexto.shadowBlur = alerta ? 20 : 14;
+    contexto.strokeStyle = "rgba(216, 30, 30, " + alphaPulso.toFixed(3) + ")";
+    contexto.lineWidth = 2.2;
+    contexto.beginPath();
+    contexto.arc(0, 0, raioPulso, 0, Math.PI * 2);
+    contexto.stroke();
     contexto.fillStyle = "rgba(255, 255, 255, 0.96)";
     contexto.strokeStyle = cor;
     contexto.lineWidth = 2.4;
@@ -1332,17 +1344,17 @@ function desenharRelevo() {
     contexto.fill();
     contexto.stroke();
     contexto.shadowBlur = 0;
-    contexto.strokeStyle = "#123d35";
-    contexto.lineWidth = 1.2;
+    contexto.strokeStyle = alerta ? "#D81E1E" : "#123d35";
+    contexto.lineWidth = alerta ? 1.8 : 1.2;
     contexto.beginPath();
-    contexto.moveTo(-17, 0);
+    contexto.moveTo(-24, 0);
     contexto.lineTo(-11, 0);
     contexto.moveTo(11, 0);
-    contexto.lineTo(17, 0);
-    contexto.moveTo(0, -17);
+    contexto.lineTo(24, 0);
+    contexto.moveTo(0, -24);
     contexto.lineTo(0, -11);
     contexto.moveTo(0, 11);
-    contexto.lineTo(0, 17);
+    contexto.lineTo(0, 24);
     contexto.stroke();
     contexto.fillStyle = cor;
     contexto.beginPath();
@@ -1546,7 +1558,7 @@ function localidadeNoPonto(evento) {
     if (!feature.geometry || feature.geometry.type !== "Point") return;
     const p = projetarPopulacao(feature.geometry.coordinates);
     const distancia = Math.hypot(point[0] - p[0], point[1] - p[1]);
-    if (distancia < menorDistancia && distancia <= 13) {
+    if (distancia < menorDistancia && distancia <= 10) {
       menorDistancia = distancia;
       melhor = feature;
     }
@@ -1768,6 +1780,7 @@ function apontarSetorPopulacao(feature) {
 }
 
 function limparFocoRelevo() {
+  pararAlertaRelevo();
   if (!estado.extremoRelevoFocado) {
     restaurarDetalheInicial("relevo");
     return;
@@ -1775,6 +1788,34 @@ function limparFocoRelevo() {
   estado.extremoRelevoFocado = null;
   restaurarDetalheInicial("relevo");
   agendarDesenho();
+}
+
+function animarAlertaRelevo() {
+  if (!estado.extremoRelevoAlerta || estado.modulo !== "relevo") {
+    estado.alertaRelevoAnimacaoId = null;
+    return;
+  }
+  agendarDesenho();
+  estado.alertaRelevoAnimacaoId = window.requestAnimationFrame(animarAlertaRelevo);
+}
+
+function iniciarAlertaRelevo(pixel) {
+  if (!pixel) return;
+  estado.extremoRelevoFocado = pixel;
+  estado.extremoRelevoAlerta = true;
+  atualizarDetalheRelevo(pixel.valor);
+  if (!estado.alertaRelevoAnimacaoId) {
+    estado.alertaRelevoAnimacaoId = window.requestAnimationFrame(animarAlertaRelevo);
+  }
+  agendarDesenho();
+}
+
+function pararAlertaRelevo() {
+  estado.extremoRelevoAlerta = false;
+  if (estado.alertaRelevoAnimacaoId) {
+    window.cancelAnimationFrame(estado.alertaRelevoAnimacaoId);
+    estado.alertaRelevoAnimacaoId = null;
+  }
 }
 
 function configurarMetricasRelevo() {
@@ -1792,6 +1833,13 @@ function configurarMetricasRelevo() {
     item.elemento.setAttribute("aria-label", item.texto);
     item.elemento.setAttribute("title", item.texto);
     item.elemento.onclick = function () { centralizarPontoRelevo(pixel); };
+    item.elemento.onmouseenter = function () { iniciarAlertaRelevo(pixel); };
+    item.elemento.onmouseleave = function () {
+      pararAlertaRelevo();
+      estado.extremoRelevoFocado = null;
+      restaurarDetalheInicial("relevo");
+      agendarDesenho();
+    };
     item.elemento.onkeydown = function (evento) {
       if (evento.key === "Enter" || evento.key === " ") {
         evento.preventDefault();
@@ -2212,7 +2260,10 @@ async function selecionarModulo(modulo) {
   if (modulo !== "uso-solo") estado.classeUsoSoloHover = null;
   if (modulo !== "populacao") estado.setorSelecionado = null;
   if (modulo !== "populacao") estado.setorHoverId = null;
-  if (modulo !== "relevo") estado.extremoRelevoFocado = null;
+  if (modulo !== "relevo") {
+    pararAlertaRelevo();
+    estado.extremoRelevoFocado = null;
+  }
   if (modulo !== "hidrografia") {
     estado.camadaHidrografiaAtiva = null;
     estado.rasterHidrografiaAtivo = null;
@@ -2416,6 +2467,7 @@ function iniciarAnimacaoComparacao() {
 function centralizarPontoRelevo(pixel) {
   const raster = estado.relevo;
   if (!raster || !pixel) return;
+  pararAlertaRelevo();
   estado.zoom = Math.max(estado.zoom, 2.15);
   const margem = Math.min(canvas.clientWidth, canvas.clientHeight) * 0.08;
   const escala = Math.min(
