@@ -300,7 +300,7 @@ async function carregarLocalidades() {
   const limite = await carregarGeojson("Cajari.geojson", "limite municipal");
   const [povoados, estradas, rios] = await Promise.all([
     carregarGeojson("LOCALIZACAO_POVOADOS/Povoados.geojson", "povoados"),
-    carregarGeojson("LOCALIZACAO_POVOADOS/Estradas_recortado.geojson?v=20260612-estradas", "estradas recortadas"),
+    carregarGeojson("LOCALIZACAO_POVOADOS/Estradas_recortado.geojson?v=20260614-estradas", "estradas recortadas"),
     carregarGeojson("LOCALIZACAO_POVOADOS/Rios.geojson", "rios")
   ]);
   estado.localidades = {
