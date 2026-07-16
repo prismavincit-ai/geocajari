@@ -83,14 +83,15 @@ const faixasRelevo = [
 const camadasHidrografia = [
   { id: "corpos", nome: "Corpos d'água", arquivo: "hidrografia/corpos_dagua.geojson", tipo: "poligono", cor: "#9FD9E6", contorno: "#347D91" },
   { id: "lagos", nome: "Lagos", arquivo: "hidrografia/Lagos.geojson", tipo: "poligono", cor: "#7ECADF", contorno: "#226F88" },
-  { id: "igarapes", nome: "Igarapés", arquivo: "hidrografia/Igarapes.geojson", tipo: "linha", cor: "#31A7BA", largura: 1.45 },
-  { id: "rio-maracu", nome: "Rio Maracu", arquivo: "hidrografia/Rio_Maracu.geojson", tipo: "linha", cor: "#0E6FA4", largura: 2.35 },
-  { id: "rio-pindare", nome: "Rio Pindaré", arquivo: "hidrografia/Rio_Pindare.geojson", tipo: "linha", cor: "#075F96", largura: 2.6 }
+  { id: "igarapes", nome: "Igarapés", arquivo: "hidrografia/Igarapes.geojson", tipo: "linha", cor: "#31A7BA", largura: 0.75 },
+  { id: "rio-maracu", nome: "Rio Maracu", arquivo: "hidrografia/Rio_Maracu.geojson", tipo: "linha", cor: "#0E6FA4", largura: 1.35 },
+  { id: "rio-pindare", nome: "Rio Pindaré", arquivo: "hidrografia/Rio_Pindare.geojson", tipo: "linha", cor: "#075F96", largura: 1.45 }
 ];
 
 const rastersHidrografia = [
+  { id: "sentinel2-2023", nome: "Sentinel-2 sem nuvens 2023", arquivo: "assets/img/cajari_sentinel2_sem_nuvens_2023.webp", tipo: "imagem-orbital", formato: "imagem", cor: "#2F9E44", visivelInicial: true },
   { id: "alagamento", nome: "Alagamento 5 m", arquivo: "hidrografia/Alagamento_5m.tif", tipo: "alagamento", cor: "#4FB8C6" },
-  { id: "frequencia", nome: "Frequência de água", arquivo: "hidrografia/frequencia.tif", tipo: "frequencia", cor: "#1C7ED6" }
+  { id: "frequencia", nome: "Frequência de água", arquivo: "hidrografia/frequencia.tif", tipo: "frequencia", cor: "#1C7ED6" },
 ];
 
 const modulosGeoportal = {
@@ -267,7 +268,7 @@ async function carregarHidrografia() {
   });
   const rasters = {};
   rastersHidrografia.forEach(function (info) {
-    rasters[info.id] = { info: info, carregando: false, visivel: false };
+    rasters[info.id] = { info: info, carregando: false, visivel: Boolean(info.visivelInicial) };
   });
   estado.hidrografia = {
     limite: limite,
@@ -283,17 +284,35 @@ function carregarRastersHidrografiaEmSegundoPlano() {
   if (!estado.hidrografia || estado.hidrografia.rastersCarregando) return;
   estado.hidrografia.rastersCarregando = true;
   rastersHidrografia.forEach(function (info) {
-    carregarTiff(info.arquivo, info.nome).then(function (raster) {
+    const carregar = info.formato === "imagem" ? carregarImagemRaster : carregarTiff;
+    carregar(info.arquivo, info.nome).then(function (raster) {
       raster.info = info;
-      raster.visivel = false;
+      raster.visivel = Boolean(info.visivelInicial);
       estado.hidrografia.rasters[info.id] = raster;
-      return atualizarImagemRasterHidrografia(info.id);
+      return info.formato === "imagem" ? Promise.resolve() : atualizarImagemRasterHidrografia(info.id);
     }).then(function () {
       agendarDesenho();
     }).catch(function (erro) {
       estado.hidrografia.rasters[info.id] = { info: info, erro: true };
       console.error(erro);
     });
+  });
+}
+
+function carregarImagemRaster(caminho, descricao) {
+  return new Promise(function (resolve, reject) {
+    const imagem = new Image();
+    imagem.onload = function () {
+      resolve({
+        largura: imagem.naturalWidth || imagem.width,
+        altura: imagem.naturalHeight || imagem.height,
+        imagem: imagem
+      });
+    };
+    imagem.onerror = function () {
+      reject(new Error("Falha ao carregar " + descricao + "."));
+    };
+    imagem.src = caminho;
   });
 }
 
@@ -499,6 +518,7 @@ function corQgisComOpacidade(hex, opacidade) {
 
 function corHidrografiaRaster(info, valor) {
   if (info.tipo === "alagamento") return rgb("#59BECB");
+  if (info.tipo === "sentinel1-agua") return rgb("#1D4ED8");
   if (info.tipo === "frequencia") {
     const intensidade = Math.max(0.2, Math.min(1, valor));
     return [
@@ -535,7 +555,9 @@ function atualizarImagemRasterHidrografia(id) {
         const valor = raster.pixels[i];
         if (!valorValidoRasterHidrografia(valor, info)) continue;
         const cor = corHidrografiaRaster(info, valor);
-        const alphaBase = info.tipo === "mde" ? 42 : (info.tipo === "frequencia" ? Math.round(55 + Math.min(1, valor) * 88) : 112);
+        const alphaBase = info.tipo === "mde" ? 42 :
+          (info.tipo === "frequencia" ? Math.round(55 + Math.min(1, valor) * 88) :
+            (info.tipo === "sentinel1-agua" ? 156 : 112));
         const indice = i * 4;
         imagem.data[indice] = cor[0];
         imagem.data[indice + 1] = cor[1];
@@ -597,6 +619,26 @@ function indiceFaixaDoRelevo(valor) {
   return faixasRelevo.findIndex(function (faixa, indice) {
     return valor >= faixa.min && (indice === faixasRelevo.length - 1 ? valor <= faixa.max : valor < faixa.max);
   });
+}
+
+function areasPorFaixaRelevo(raster) {
+  if (!raster) return faixasRelevo.map(function () { return 0; });
+  if (raster.areasFaixas) return raster.areasFaixas;
+  const contagens = faixasRelevo.map(function () { return 0; });
+  let totalPixels = 0;
+  for (let i = 0; i < raster.pixels.length; i += 1) {
+    const valor = raster.pixels[i];
+    if (!Number.isFinite(valor) || valor <= 0) continue;
+    const faixa = indiceFaixaDoRelevo(valor);
+    if (faixa < 0) continue;
+    contagens[faixa] += 1;
+    totalPixels += 1;
+  }
+  const areaMunicipal = 662.066;
+  raster.areasFaixas = contagens.map(function (contagem) {
+    return totalPixels ? contagem / totalPixels * areaMunicipal : 0;
+  });
+  return raster.areasFaixas;
 }
 
 function atualizarImagemRelevo() {
@@ -934,7 +976,7 @@ function desenharFeatureHidrografia(feature, camada, destaque) {
     tracarLinhas(contexto, feature.geometry);
     contexto.globalAlpha = apagada ? 0.18 : 1;
     contexto.strokeStyle = rioPrincipal ? "rgba(255, 255, 255, 0.9)" : "rgba(255, 255, 255, 0.88)";
-    contexto.lineWidth = (info.largura || 1.5) + (destaque ? 3.8 : (rioPrincipal ? 2.7 : 3.1));
+    contexto.lineWidth = (info.largura || 1.2) + (destaque ? 2.1 : (rioPrincipal ? 1.05 : 0.85));
     contexto.lineCap = "round";
     contexto.lineJoin = "round";
     contexto.stroke();
@@ -942,7 +984,7 @@ function desenharFeatureHidrografia(feature, camada, destaque) {
     contexto.strokeStyle = info.cor;
     contexto.globalAlpha = apagada ? 0.18 : 1;
     contexto.setLineDash([]);
-    contexto.lineWidth = (info.largura || 1.5) + (destaque ? 1.5 : (rioPrincipal ? 0.35 : 0.45));
+    contexto.lineWidth = (info.largura || 1.2) + (destaque ? 0.9 : (rioPrincipal ? 0.15 : 0.05));
     contexto.stroke();
   }
   contexto.restore();
@@ -962,13 +1004,13 @@ function desenharFluxoHidrografia(feature, camada, tempo) {
   contexto.setLineDash(rioPrincipal ? [12, 24] : [8, 24]);
   contexto.lineDashOffset = fase;
   contexto.strokeStyle = rioPrincipal ? "rgba(255, 255, 255, 0.76)" : "rgba(255, 255, 255, 0.48)";
-  contexto.lineWidth = (info.largura || 1.5) + (rioPrincipal ? 1.25 : 0.85);
+  contexto.lineWidth = (info.largura || 1.2) + (rioPrincipal ? 0.65 : 0.45);
   contexto.stroke();
   tracarLinhas(contexto, feature.geometry);
   contexto.setLineDash(rioPrincipal ? [10, 26] : [6, 26]);
   contexto.lineDashOffset = fase - 4;
   contexto.strokeStyle = rioPrincipal ? "rgba(109, 224, 242, 0.72)" : "rgba(134, 229, 238, 0.44)";
-  contexto.lineWidth = Math.max(1, (info.largura || 1.5) - 0.15);
+  contexto.lineWidth = Math.max(0.75, (info.largura || 1.2) - 0.2);
   contexto.stroke();
   contexto.setLineDash([]);
   contexto.restore();
@@ -1936,9 +1978,10 @@ function renderizarPainelRelevo() {
   document.getElementById("indicadoresEyebrow").textContent = "Legenda";
   document.getElementById("indicadoresTitulo").textContent = "Faixas de altitude";
   document.getElementById("indicadoresMudanca").className = "change-list population-legend relief-legend";
+  const areasFaixas = areasPorFaixaRelevo(raster);
   document.getElementById("indicadoresMudanca").innerHTML = faixasRelevo.map(function (faixa, indice) {
     return "<div class='change-row relief-range' data-faixa='" + indice + "'><span class='legend-swatch' style='background:" + faixa.cor +
-      "'></span><span>" + faixa.rotulo + "</span></div>";
+      "'></span><span>" + faixa.rotulo + "</span><strong>" + numero.format(areasFaixas[indice]) + " km²</strong></div>";
   }).join("") + "<p class='population-summary'>Altitude estimada entre <strong>" +
     numero.format(raster.minimo) + " m</strong> e <strong>" + numero.format(raster.maximo) + " m</strong>.</p>";
   document.querySelectorAll(".relief-range").forEach(function (item) {
@@ -1993,13 +2036,13 @@ function renderizarPainelHidrografia() {
   document.getElementById("classePrincipal").textContent = areaAgua > 0 ? numero.format(areaAgua) + " km²" : totalAreas.toLocaleString("pt-BR");
   document.getElementById("areaPrincipal").textContent = areaAgua > 0 ? totalAreas + " feições mapeadas" : "feições mapeadas";
   document.getElementById("fonteModulo").innerHTML =
-    "Fonte: projeto QGIS de hidrografia fornecido.<br>Camadas vetoriais e rasters referenciados no arquivo Hidrografia.qgz.";
+    "Fonte: projeto QGIS de hidrografia fornecido e imagem Sentinel-2 sem nuvens processada no Google Earth Engine.<br>Camadas vetoriais, rasters locais e imagem orbital de contexto.";
   document.getElementById("indicadoresEyebrow").textContent = "Legenda";
   document.getElementById("indicadoresTitulo").textContent = "Camadas do projeto QGIS";
   document.getElementById("indicadoresMudanca").className = "change-list population-legend hydro-legend";
   const legendaRasters = rastersHidrografia.map(function (raster) {
     return "<div class='change-row hydro-raster-range' data-raster='" + raster.id + "'><span class='legend-swatch raster-swatch' style='background:" +
-      raster.cor + "'></span><span>" + raster.nome + "</span><strong>raster</strong></div>";
+      raster.cor + "'></span><span>" + raster.nome + "</span><strong>" + (raster.formato === "imagem" ? "imagem" : "raster") + "</strong></div>";
   }).join("");
   const legendaVetores = camadasHidrografia.map(function (camada) {
     const total = estado.hidrografia.camadas[camada.id].geojson.features.length;
@@ -2008,7 +2051,7 @@ function renderizarPainelHidrografia() {
       "</span><strong>" + total.toLocaleString("pt-BR") + "</strong></div>";
   }).join("");
   document.getElementById("indicadoresMudanca").innerHTML = legendaRasters + legendaVetores +
-    "<p class='population-summary'>Frequência e alagamento ficam desligados por padrão. Clique na legenda para exibir. O MDE foi mantido apenas no módulo Relevo.</p>";
+    "<p class='population-summary'>Rasters ficam desligados por padrão. Clique na legenda para exibir alagamento, frequência de água ou água provável da cheia. O MDE foi mantido apenas no módulo Relevo.</p>";
   document.querySelectorAll(".hydro-range").forEach(function (item) {
     item.addEventListener("mouseenter", function () {
       estado.camadaHidrografiaAtiva = this.dataset.camada;
