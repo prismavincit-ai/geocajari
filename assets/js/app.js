@@ -943,7 +943,6 @@ function distanciaKmEntreCoordenadas(a, b) {
 function extensaoCursoAgua(feature) {
   const p = feature.properties || {};
   const declarada = Number(p.NUCOMPCDA || p.nucompcda || p.nucompgeom || p.NUCOMPGEO || p.extensao_km || 0);
-  if (Number.isFinite(declarada) && declarada > 0) return declarada > 1000 ? declarada / 1000 : declarada;
   let total = 0;
   const linhas = feature.geometry.type === "LineString" ? [feature.geometry.coordinates] :
     (feature.geometry.type === "MultiLineString" ? feature.geometry.coordinates : []);
@@ -953,7 +952,9 @@ function extensaoCursoAgua(feature) {
       total += distanciaKmEntreCoordenadas(line[i - 1], line[i]);
     }
   });
-  return total;
+  if (total > 0) return total;
+  if (Number.isFinite(declarada) && declarada > 0) return declarada > 1000 ? declarada / 1000 : declarada;
+  return 0;
 }
 
 function desenharFeatureHidrografia(feature, camada, destaque) {
