@@ -1380,12 +1380,10 @@ function desenharRelevo() {
     contexto.beginPath();
     contexto.arc(0, 0, raioPulso, 0, Math.PI * 2);
     contexto.stroke();
-    contexto.fillStyle = "rgba(255, 255, 255, 0.96)";
     contexto.strokeStyle = cor;
     contexto.lineWidth = 2.4;
     contexto.beginPath();
     contexto.arc(0, 0, 10, 0, Math.PI * 2);
-    contexto.fill();
     contexto.stroke();
     contexto.shadowBlur = 0;
     contexto.strokeStyle = alerta ? "#D81E1E" : "#123d35";
