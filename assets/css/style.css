@@ -531,7 +531,7 @@ input:focus-visible {
   height: 13px;
   left: 10px;
   top: 12px;
-  transform: rotate(-45deg);
+  transform: rotate(135deg);
   width: 13px;
 }
 
@@ -541,7 +541,7 @@ input:focus-visible {
   height: 9px;
   left: 17px;
   top: 14px;
-  transform: rotate(-45deg);
+  transform: rotate(135deg);
   width: 9px;
 }
 
