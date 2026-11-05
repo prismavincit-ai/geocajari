@@ -1009,6 +1009,32 @@ input:focus-visible {
   min-width: 2px;
 }
 
+.author-credit {
+  margin: 18px 0 0;
+  padding: 12px 0;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+.author-credit p {
+  margin: 0 0 8px;
+}
+
+.author-credit strong {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--ink);
+  font-size: 0.95rem;
+}
+
+.author-credit a {
+  color: var(--ink);
+  text-underline-offset: 3px;
+}
+
 .source {
   color: #77847d;
   font-size: 0.67rem;
