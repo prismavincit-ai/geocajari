@@ -40,6 +40,7 @@ const estado = {
   relevo: null,
   faixaRelevoAtiva: null,
   extremoRelevoFocado: null,
+  extremoRelevoSelecionado: null,
   extremoRelevoAlerta: false,
   alertaRelevoAnimacaoId: null,
   ultimaAltitudeCursor: null,
@@ -943,7 +944,6 @@ function distanciaKmEntreCoordenadas(a, b) {
 function extensaoCursoAgua(feature) {
   const p = feature.properties || {};
   const declarada = Number(p.NUCOMPCDA || p.nucompcda || p.nucompgeom || p.NUCOMPGEO || p.extensao_km || 0);
-  if (Number.isFinite(declarada) && declarada > 0) return declarada > 1000 ? declarada / 1000 : declarada;
   let total = 0;
   const linhas = feature.geometry.type === "LineString" ? [feature.geometry.coordinates] :
     (feature.geometry.type === "MultiLineString" ? feature.geometry.coordinates : []);
@@ -953,7 +953,9 @@ function extensaoCursoAgua(feature) {
       total += distanciaKmEntreCoordenadas(line[i - 1], line[i]);
     }
   });
-  return total;
+  if (total > 0) return total;
+  if (Number.isFinite(declarada) && declarada > 0) return declarada > 1000 ? declarada / 1000 : declarada;
+  return 0;
 }
 
 function desenharFeatureHidrografia(feature, camada, destaque) {
@@ -1822,6 +1824,7 @@ function apontarSetorPopulacao(feature) {
 }
 
 function limparFocoRelevo() {
+  estado.extremoRelevoSelecionado = null;
   pararAlertaRelevo();
   if (!estado.extremoRelevoFocado) {
     restaurarDetalheInicial("relevo");
@@ -1877,6 +1880,10 @@ function configurarMetricasRelevo() {
     item.elemento.onclick = function () { centralizarPontoRelevo(pixel); };
     item.elemento.onmouseenter = function () { iniciarAlertaRelevo(pixel); };
     item.elemento.onmouseleave = function () {
+      if (estado.extremoRelevoSelecionado) {
+        iniciarAlertaRelevo(estado.extremoRelevoSelecionado);
+        return;
+      }
       pararAlertaRelevo();
       estado.extremoRelevoFocado = null;
       restaurarDetalheInicial("relevo");
@@ -2304,6 +2311,7 @@ async function selecionarModulo(modulo) {
   if (modulo !== "populacao") estado.setorSelecionado = null;
   if (modulo !== "populacao") estado.setorHoverId = null;
   if (modulo !== "relevo") {
+    estado.extremoRelevoSelecionado = null;
     pararAlertaRelevo();
     estado.extremoRelevoFocado = null;
   }
@@ -2510,7 +2518,7 @@ function iniciarAnimacaoComparacao() {
 function centralizarPontoRelevo(pixel) {
   const raster = estado.relevo;
   if (!raster || !pixel) return;
-  pararAlertaRelevo();
+  estado.extremoRelevoSelecionado = pixel;
   estado.zoom = Math.max(estado.zoom, 2.15);
   const margem = Math.min(canvas.clientWidth, canvas.clientHeight) * 0.08;
   const escala = Math.min(
@@ -2523,9 +2531,7 @@ function centralizarPontoRelevo(pixel) {
   const yBase = canvas.clientHeight / 2 - altura / 2;
   estado.deslocamentoX = canvas.clientWidth / 2 - (xBase + (pixel.coluna + 0.5) * escala);
   estado.deslocamentoY = canvas.clientHeight / 2 - (yBase + (pixel.linha + 0.5) * escala);
-  estado.extremoRelevoFocado = pixel;
-  atualizarDetalheRelevo(pixel.valor);
-  agendarDesenho();
+  iniciarAlertaRelevo(pixel);
 }
 
 function atualizarMetricas() {
